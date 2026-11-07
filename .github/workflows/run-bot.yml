@@ -1,0 +1,59 @@
+name: Telegram Bot Doi Soat GHN & Van Loi
+on:
+  schedule:
+    # Gio quoc te UTC (Gio VN = UTC + 7 tieng)
+    - cron: '0 2 * * *'   # 02:00 UTC = 09:00 VN (Room 1)
+    - cron: '0 3 * * *'   # 03:00 UTC = 10:00 VN (Room 2)
+    - cron: '0 8 * * *'   # 08:00 UTC = 15:00 VN (Room 1)
+    - cron: '0 9 * * *'   # 09:00 UTC = 16:00 VN (Room 2)
+  workflow_dispatch:      # Nut bam chay thu tren web/dien thoai
+    inputs:
+      target:
+        description: 'Chon Room muon ban'
+        required: true
+        default: 'All'
+        type: choice
+        options:
+          - All
+          - Room1
+          - Room2
+jobs:
+  run-bot:
+    runs-on: windows-latest
+    steps:
+      - name: Lay ma nguon
+        uses: actions/checkout@v4
+      - name: Chay Bot PowerShell
+        shell: pwsh
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          $utcHour = (Get-Date).ToUniversalTime().Hour
+          $manualTarget = "${{ github.event.inputs.target }}"
+          $room1 = "-1003837960650"
+          $room2 = "-1002369053610"
+          # 1. Neu bam chay tay:
+          if ($manualTarget -eq "Room1") {
+              Write-Host "-> Ban cho Room 1"
+              powershell -ExecutionPolicy Bypass -File .\bot.ps1 -TargetChatId $room1
+          } elseif ($manualTarget -eq "Room2") {
+              Write-Host "-> Ban cho Room 2"
+              powershell -ExecutionPolicy Bypass -File .\bot.ps1 -TargetChatId $room2
+          } elseif ($manualTarget -eq "All") {
+              Write-Host "-> Ban cho ca 2 Room"
+              powershell -ExecutionPolicy Bypass -File .\bot.ps1 -TargetChatId $room1
+              Start-Sleep -Seconds 2
+              powershell -ExecutionPolicy Bypass -File .\bot.ps1 -TargetChatId $room2
+          } else {
+              # 2. Chay tu dong theo lich:
+              if ($utcHour -eq 2 -or $utcHour -eq 8) {
+                  Write-Host "-> Lich tu dong: Ban Room 1 (9h/15h VN)"
+                  powershell -ExecutionPolicy Bypass -File .\bot.ps1 -TargetChatId $room1
+              } elseif ($utcHour -eq 3 -or $utcHour -eq 9) {
+                  Write-Host "-> Lich tu dong: Ban Room 2 (10h/16h VN)"
+                  powershell -ExecutionPolicy Bypass -File .\bot.ps1 -TargetChatId $room2
+              } else {
+                  powershell -ExecutionPolicy Bypass -File .\bot.ps1 -TargetChatId $room1
+                  Start-Sleep -Seconds 2
+                  powershell -ExecutionPolicy Bypass -File .\bot.ps1 -TargetChatId $room2
+              }
+          }
